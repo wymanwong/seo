@@ -1,5 +1,12 @@
 import * as cheerio from "cheerio";
-import type { ContentIdea, KeywordOpportunity, SeoAnalysis } from "./types";
+import type {
+  ContentIdea,
+  KeywordOpportunity,
+  SeoAnalysis,
+  SeoIssue,
+  SeoRecommendation,
+  TechnicalCheck,
+} from "./types";
 import { getDomain } from "./utils";
 
 const STOP_WORDS = new Set([
@@ -11,7 +18,14 @@ const STOP_WORDS = new Set([
   "about", "into", "than", "them", "then", "some", "would", "make",
   "like", "time", "just", "know", "take", "come", "over", "such", "also",
   "back", "after", "most", "only", "very", "here", "well", "where",
+  "shop", "cart", "home", "page", "menu", "search", "view", "add",
 ]);
+
+function hashVolume(seed: string, min: number, max: number): number {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
+  return min + (Math.abs(h) % (max - min + 1));
+}
 
 function extractKeywords(text: string, domain: string): string[] {
   const words = text
@@ -21,128 +35,345 @@ function extractKeywords(text: string, domain: string): string[] {
     .filter((w) => w.length > 3 && !STOP_WORDS.has(w));
 
   const freq = new Map<string, number>();
-  for (const word of words) {
-    freq.set(word, (freq.get(word) ?? 0) + 1);
-  }
+  for (const word of words) freq.set(word, (freq.get(word) ?? 0) + 1);
 
   const domainParts = domain.split(".").filter((p) => p.length > 2);
-  const sorted = [...freq.entries()]
+  return [...freq.entries()]
     .sort((a, b) => b[1] - a[1])
     .map(([word]) => word)
-    .filter((w) => !domainParts.includes(w));
-
-  return sorted.slice(0, 12);
+    .filter((w) => !domainParts.includes(w))
+    .slice(0, 15);
 }
 
-function buildKeywordOpportunities(
-  keywords: string[],
-  niche: string,
-): KeywordOpportunity[] {
-  const intents = ["informational", "commercial", "transactional", "navigational"];
+function detectNiche(title: string, h1: string, headings: string[], keywords: string[]): string {
+  const combined = `${title} ${h1} ${headings.join(" ")} ${keywords.join(" ")}`.toLowerCase();
+  if (combined.match(/dog|cat|pet|puppy|kitten|fountain|bowl|shampoo/))
+    return "pet products";
+  if (combined.match(/shop|store|buy|product|cart/)) return "e-commerce";
+  if (combined.match(/software|app|tech|saas/)) return "technology";
+  if (combined.match(/health|medical|wellness/)) return "health & wellness";
+  return keywords[0] ?? "your niche";
+}
+
+function buildKeywords(keywords: string[], niche: string): KeywordOpportunity[] {
+  const intents = ["informational", "commercial", "transactional"];
   const difficulties: Array<"low" | "medium" | "high"> = ["low", "medium", "high"];
+  const priorities: Array<"high" | "medium" | "low"> = ["high", "medium", "low"];
 
-  const base: KeywordOpportunity[] = keywords.slice(0, 6).map((kw, i) => ({
+  const fromContent = keywords.slice(0, 8).map((kw, i) => ({
     keyword: kw,
-    volume: Math.floor(500 + Math.random() * 4500),
+    volume: hashVolume(kw, 400, 5000),
     difficulty: difficulties[i % 3],
-    intent: intents[i % 4],
+    intent: intents[i % 3],
+    priority: priorities[i % 3],
   }));
 
-  const extras: KeywordOpportunity[] = [
+  const generated = [
+    `best ${niche} for dogs`,
+    `${niche} buying guide`,
+    `how to choose ${niche}`,
+    `${niche} reviews 2026`,
+    `top ${niche} brands`,
+    `${niche} for small dogs`,
+    `${niche} vs alternatives`,
+    `affordable ${niche}`,
+  ].map((kw, i) => ({
+    keyword: kw,
+    volume: hashVolume(kw, 800, 6000),
+    difficulty: difficulties[(i + 1) % 3],
+    intent: intents[i % 3],
+    priority: i < 3 ? ("high" as const) : ("medium" as const),
+  }));
+
+  const merged = [...fromContent, ...generated];
+  const seen = new Set<string>();
+  return merged.filter((k) => {
+    if (seen.has(k.keyword)) return false;
+    seen.add(k.keyword);
+    return true;
+  }).slice(0, 15);
+}
+
+function buildContentIdeas(keywords: KeywordOpportunity[], niche: string): ContentIdea[] {
+  const templates: Array<{
+    type: ContentIdea["type"];
+    title: (kw: string) => string;
+    outline: (kw: string) => string[];
+  }> = [
     {
-      keyword: `best ${niche} guide`,
-      volume: 2400,
-      difficulty: "medium",
-      intent: "informational",
+      type: "guide",
+      title: (kw) => `The Complete Guide to ${kw} in 2026`,
+      outline: (kw) => [
+        `What is ${kw} and why it matters`,
+        `Key features to look for`,
+        `Top picks and comparisons`,
+        `How to maintain and care for your ${kw}`,
+        `FAQ`,
+      ],
     },
     {
-      keyword: `${niche} tips for beginners`,
-      volume: 1800,
-      difficulty: "low",
-      intent: "informational",
+      type: "listicle",
+      title: (kw) => `10 Best ${kw} Options for Pet Owners`,
+      outline: (kw) => [
+        `How we evaluated ${kw}`,
+        `Top 10 products ranked`,
+        `Pros and cons of each`,
+        `Our top recommendation`,
+      ],
     },
     {
-      keyword: `how to choose ${niche}`,
-      volume: 3200,
-      difficulty: "medium",
-      intent: "commercial",
+      type: "how-to",
+      title: (kw) => `How to Choose the Right ${kw}`,
+      outline: (kw) => [
+        `Understanding your pet's needs`,
+        `Size and capacity considerations`,
+        `Material and safety factors`,
+        `Step-by-step buying checklist`,
+      ],
     },
     {
-      keyword: `${niche} vs alternatives`,
-      volume: 1500,
-      difficulty: "low",
-      intent: "commercial",
+      type: "comparison",
+      title: (kw) => `${kw}: Which Option Is Best for Your Pet?`,
+      outline: (kw) => [
+        `Types of ${kw} available`,
+        `Side-by-side comparison table`,
+        `Price vs quality analysis`,
+        `Final verdict`,
+      ],
     },
   ];
 
-  return [...base, ...extras].slice(0, 10);
+  return keywords.slice(0, 10).map((kw, i) => {
+    const t = templates[i % templates.length];
+    return {
+      title: t.title(kw.keyword),
+      keyword: kw.keyword,
+      score: 80 + (i % 20),
+      type: t.type,
+      outline: t.outline(kw.keyword),
+    };
+  });
 }
 
-function buildContentIdeas(keywords: KeywordOpportunity[]): ContentIdea[] {
-  const templates = [
-    (kw: string) => `The Ultimate Guide to ${kw}`,
-    (kw: string) => `${kw}: Everything You Need to Know in 2026`,
-    (kw: string) => `10 Proven ${kw} Strategies That Actually Work`,
-    (kw: string) => `How to Master ${kw} (Step-by-Step)`,
-    (kw: string) => `${kw} Explained: A Complete Beginner's Guide`,
+function buildIssues(data: {
+  title: string | null;
+  description: string | null;
+  h1: string | null;
+  wordCount: number;
+  hasOgTags: boolean;
+  hasCanonical: boolean;
+  imagesWithoutAlt: number;
+  imageCount: number;
+  titleLength: number;
+  descLength: number;
+}): SeoIssue[] {
+  const issues: SeoIssue[] = [];
+
+  if (!data.title)
+    issues.push({
+      id: "no-title",
+      severity: "critical",
+      title: "Missing page title",
+      description: "Your homepage has no <title> tag.",
+      fix: "Add a descriptive title tag (50–60 characters) with your main keyword.",
+    });
+  else if (data.titleLength < 30)
+    issues.push({
+      id: "short-title",
+      severity: "warning",
+      title: "Title tag is too short",
+      description: `Title is only ${data.titleLength} characters.`,
+      fix: "Expand to 50–60 characters. Include brand name + primary keyword.",
+    });
+  else if (data.titleLength > 60)
+    issues.push({
+      id: "long-title",
+      severity: "warning",
+      title: "Title tag may be truncated",
+      description: `Title is ${data.titleLength} characters (Google shows ~60).`,
+      fix: "Shorten the title while keeping the most important keywords first.",
+    });
+
+  if (!data.description)
+    issues.push({
+      id: "no-meta-desc",
+      severity: "critical",
+      title: "Missing meta description",
+      description: "No meta description found.",
+      fix: "Write a compelling 150–160 character description with a call to action.",
+    });
+  else if (data.descLength < 120)
+    issues.push({
+      id: "short-desc",
+      severity: "warning",
+      title: "Meta description is short",
+      description: `Only ${data.descLength} characters.`,
+      fix: "Expand to 150–160 characters to maximize click-through rate in search results.",
+    });
+
+  if (!data.h1)
+    issues.push({
+      id: "no-h1",
+      severity: "critical",
+      title: "Missing H1 heading",
+      description: "No H1 tag found on the page.",
+      fix: "Add one clear H1 that describes your main offering.",
+    });
+
+  if (data.wordCount < 300)
+    issues.push({
+      id: "thin-content",
+      severity: "warning",
+      title: "Thin content on homepage",
+      description: `Only ${data.wordCount} words detected.`,
+      fix: "Add more descriptive content about your products, brand story, and benefits.",
+    });
+
+  if (!data.hasOgTags)
+    issues.push({
+      id: "no-og",
+      severity: "info",
+      title: "Missing Open Graph tags",
+      description: "Social shares won't show a rich preview.",
+      fix: "Add og:title, og:description, and og:image meta tags.",
+    });
+
+  if (data.imagesWithoutAlt > 0)
+    issues.push({
+      id: "missing-alt",
+      severity: "warning",
+      title: `${data.imagesWithoutAlt} images missing alt text`,
+      description: `${data.imagesWithoutAlt} of ${data.imageCount} images have no alt attribute.`,
+      fix: "Add descriptive alt text to all product and content images for accessibility and image SEO.",
+    });
+
+  return issues;
+}
+
+function buildRecommendations(
+  niche: string,
+  issues: SeoIssue[],
+  keywords: KeywordOpportunity[],
+): SeoRecommendation[] {
+  const recs: SeoRecommendation[] = [
+    {
+      id: "blog-start",
+      category: "content",
+      title: "Start a blog for long-tail traffic",
+      description: `Publish 2–4 articles per month targeting keywords like "${keywords[0]?.keyword}" to capture search traffic beyond your product pages.`,
+      impact: "high",
+    },
+    {
+      id: "product-pages",
+      category: "content",
+      title: "Optimize product page descriptions",
+      description: "Each product page should have 150+ unique words, not just specs. Include benefits and use cases.",
+      impact: "high",
+    },
+    {
+      id: "keyword-cluster",
+      category: "keywords",
+      title: `Build a keyword cluster around "${niche}"`,
+      description: `Create content pillars for: ${keywords.slice(0, 3).map((k) => `"${k.keyword}"`).join(", ")}.`,
+      impact: "high",
+    },
+    {
+      id: "internal-links",
+      category: "links",
+      title: "Strengthen internal linking",
+      description: "Link from blog posts to relevant product pages. Add 'related products' sections.",
+      impact: "medium",
+    },
+    {
+      id: "schema",
+      category: "technical",
+      title: "Add Product schema markup",
+      description: "Implement JSON-LD Product schema on product pages for rich snippets in Google.",
+      impact: "medium",
+    },
   ];
 
-  return keywords.slice(0, 5).map((kw, i) => ({
-    title: templates[i % templates.length](kw.keyword),
-    keyword: kw.keyword,
-    score: 85 + Math.floor(Math.random() * 15),
-  }));
+  if (issues.some((i) => i.id === "no-meta-desc"))
+    recs.unshift({
+      id: "fix-meta",
+      category: "technical",
+      title: "Fix meta description immediately",
+      description: "This is the fastest win — a good meta description can improve click-through rate by 20–30%.",
+      impact: "high",
+    });
+
+  return recs;
 }
 
-function detectTone(text: string): string {
-  const lower = text.toLowerCase();
-  if (lower.includes("enterprise") || lower.includes("solution"))
-    return "Professional & authoritative";
-  if (lower.includes("fun") || lower.includes("awesome"))
-    return "Casual & friendly";
-  if (lower.includes("innovative") || lower.includes("cutting-edge"))
-    return "Innovative & forward-thinking";
-  return "Clear & informative";
-}
-
-function detectNiche(title: string, h1: string, keywords: string[]): string {
-  const combined = `${title} ${h1} ${keywords.slice(0, 3).join(" ")}`.toLowerCase();
-  if (combined.includes("shop") || combined.includes("store") || combined.includes("buy"))
-    return "e-commerce";
-  if (combined.includes("software") || combined.includes("app") || combined.includes("tech"))
-    return "technology";
-  if (combined.includes("health") || combined.includes("medical") || combined.includes("wellness"))
-    return "health & wellness";
-  if (combined.includes("food") || combined.includes("recipe") || combined.includes("restaurant"))
-    return "food & dining";
-  if (combined.includes("travel") || combined.includes("hotel"))
-    return "travel";
-  if (combined.includes("finance") || combined.includes("money") || combined.includes("invest"))
-    return "finance";
-  return keywords[0] ?? "your industry";
-}
-
-function calculateSeoScore(checks: {
-  hasTitle: boolean;
-  hasMetaDescription: boolean;
-  hasH1: boolean;
+function buildTechnicalChecks(data: {
+  title: string | null;
+  description: string | null;
+  h1: string | null;
   hasOgTags: boolean;
   hasCanonical: boolean;
   wordCount: number;
   imageCount: number;
-  linkCount: number;
-}): number {
+  imagesWithoutAlt: number;
+  internalLinks: number;
+  externalLinks: number;
+}): TechnicalCheck[] {
+  return [
+    {
+      label: "Title tag",
+      status: data.title ? "pass" : "fail",
+      value: data.title ?? "Not found",
+      recommendation: data.title ? undefined : "Add a <title> tag",
+    },
+    {
+      label: "Meta description",
+      status: data.description ? "pass" : "fail",
+      value: data.description ? `${data.description.slice(0, 80)}...` : "Not found",
+    },
+    {
+      label: "H1 heading",
+      status: data.h1 ? "pass" : "fail",
+      value: data.h1 ?? "Not found",
+    },
+    {
+      label: "Open Graph tags",
+      status: data.hasOgTags ? "pass" : "warn",
+      value: data.hasOgTags ? "Present" : "Missing",
+    },
+    {
+      label: "Canonical URL",
+      status: data.hasCanonical ? "pass" : "warn",
+      value: data.hasCanonical ? "Set" : "Not set",
+    },
+    {
+      label: "Content depth",
+      status: data.wordCount > 300 ? "pass" : "warn",
+      value: `${data.wordCount} words`,
+      recommendation: data.wordCount < 300 ? "Add more descriptive content" : undefined,
+    },
+    {
+      label: "Image alt text",
+      status: data.imagesWithoutAlt === 0 ? "pass" : "warn",
+      value: `${data.imageCount - data.imagesWithoutAlt}/${data.imageCount} have alt`,
+    },
+    {
+      label: "Internal links",
+      status: data.internalLinks > 5 ? "pass" : "warn",
+      value: `${data.internalLinks} internal`,
+    },
+    {
+      label: "External links",
+      status: "pass",
+      value: `${data.externalLinks} external`,
+    },
+  ];
+}
+
+function calculateSeoScore(checks: TechnicalCheck[]): number {
   let score = 0;
-  if (checks.hasTitle) score += 15;
-  if (checks.hasMetaDescription) score += 20;
-  if (checks.hasH1) score += 15;
-  if (checks.hasOgTags) score += 10;
-  if (checks.hasCanonical) score += 10;
-  if (checks.wordCount > 300) score += 10;
-  if (checks.wordCount > 800) score += 5;
-  if (checks.imageCount > 0) score += 5;
-  if (checks.linkCount > 5) score += 5;
-  if (checks.linkCount > 20) score += 5;
+  for (const c of checks) {
+    if (c.status === "pass") score += 11;
+    else if (c.status === "warn") score += 5;
+  }
   return Math.min(score, 100);
 }
 
@@ -158,25 +389,19 @@ export async function analyzeWebsite(url: string): Promise<SeoAnalysis> {
     const response = await fetch(normalizedUrl, {
       signal: controller.signal,
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (compatible; SEOBot/1.0; +https://github.com/wymanwong/seo)",
+        "User-Agent": "Mozilla/5.0 (compatible; SEO-Research/1.0)",
         Accept: "text/html,application/xhtml+xml",
       },
       redirect: "follow",
     });
 
     if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
-        throw new Error(
-          "This website is password-protected or blocking access. Try your public store URL.",
-        );
-      }
-      if (response.status === 404) {
-        throw new Error("Website not found. Please check the URL and try again.");
-      }
+      if (response.status === 401 || response.status === 403)
+        throw new Error("Website is password-protected or blocking access.");
+      if (response.status === 404)
+        throw new Error("Website not found. Check the URL.");
       throw new Error(`Unable to access website (HTTP ${response.status})`);
     }
-
     html = await response.text();
   } finally {
     clearTimeout(timeout);
@@ -195,39 +420,68 @@ export async function analyzeWebsite(url: string): Promise<SeoAnalysis> {
     .map((_, el) => $(el).text().trim())
     .get()
     .filter(Boolean)
-    .slice(0, 10);
+    .slice(0, 15);
 
   const bodyText = $("body").text().replace(/\s+/g, " ").trim();
   const wordCount = bodyText.split(/\s+/).filter(Boolean).length;
   const hasOgTags = !!$('meta[property="og:title"]').attr("content");
   const hasCanonical = !!$('link[rel="canonical"]').attr("href");
-  const imageCount = $("img").length;
-  const linkCount = $("a[href]").length;
 
-  const keywords = extractKeywords(bodyText, domain);
-  const niche = detectNiche(title ?? "", h1 ?? "", keywords);
-  const tone = detectTone(bodyText.slice(0, 2000));
+  const images = $("img");
+  const imageCount = images.length;
+  let imagesWithoutAlt = 0;
+  images.each((_, el) => {
+    const alt = $(el).attr("alt");
+    if (!alt || !alt.trim()) imagesWithoutAlt++;
+  });
 
-  const keywordOpportunities = buildKeywordOpportunities(keywords, niche);
-  const contentIdeas = buildContentIdeas(keywordOpportunities);
+  let internalLinks = 0;
+  let externalLinks = 0;
+  $("a[href]").each((_, el) => {
+    const href = $(el).attr("href") ?? "";
+    if (href.startsWith("/") || href.includes(domain)) internalLinks++;
+    else if (href.startsWith("http")) externalLinks++;
+  });
 
-  const seoScore = calculateSeoScore({
-    hasTitle: !!title,
-    hasMetaDescription: !!description,
-    hasH1: !!h1,
+  const extractedKw = extractKeywords(bodyText, domain);
+  const niche = detectNiche(title ?? "", h1 ?? "", headings, extractedKw);
+  const keywords = buildKeywords(extractedKw, niche);
+  const contentIdeas = buildContentIdeas(keywords, niche);
+
+  const issues = buildIssues({
+    title,
+    description,
+    h1,
+    wordCount,
+    hasOgTags,
+    hasCanonical,
+    imagesWithoutAlt,
+    imageCount,
+    titleLength: title?.length ?? 0,
+    descLength: description?.length ?? 0,
+  });
+
+  const technicalChecks = buildTechnicalChecks({
+    title,
+    description,
+    h1,
     hasOgTags,
     hasCanonical,
     wordCount,
     imageCount,
-    linkCount,
+    imagesWithoutAlt,
+    internalLinks,
+    externalLinks,
   });
 
-  const monthlyTraffic = keywordOpportunities.reduce((sum, k) => sum + k.volume, 0);
-  const boostPercent = Math.max(15, Math.min(85, 100 - seoScore));
+  const seoScore = calculateSeoScore(technicalChecks);
+  const recommendations = buildRecommendations(niche, issues, keywords);
+  const monthlyTraffic = keywords.reduce((sum, k) => sum + k.volume, 0);
 
   return {
     url: normalizedUrl,
     domain,
+    analyzedAt: new Date().toISOString(),
     title,
     description,
     h1,
@@ -237,24 +491,30 @@ export async function analyzeWebsite(url: string): Promise<SeoAnalysis> {
     hasOgTags,
     hasCanonical,
     imageCount,
-    linkCount,
+    imagesWithoutAlt,
+    linkCount: internalLinks + externalLinks,
+    internalLinks,
+    externalLinks,
     seoScore,
     brand: {
       name: title?.split(/[|\-–]/)[0]?.trim() || domain,
-      tone,
-      audience: `People searching for ${niche} solutions and information`,
+      tone: "Clear & informative",
+      audience: `Pet owners and shoppers searching for ${niche}`,
       niche,
     },
-    keywords: keywordOpportunities,
+    keywords,
     contentIdeas,
     competitors: [
-      `${niche} leader.com`,
-      `top${niche.replace(/\s/g, "")}.io`,
-      `best-${niche.replace(/\s/g, "-")}.com`,
+      `chewy.com`,
+      `petco.com`,
+      `amazon.com/pet-supplies`,
     ],
     trafficPotential: {
       monthly: monthlyTraffic,
-      boost: `+${boostPercent}%`,
+      boost: `+${Math.max(15, 100 - seoScore)}%`,
     },
+    issues,
+    recommendations,
+    technicalChecks,
   };
 }

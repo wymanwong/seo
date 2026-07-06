@@ -1,6 +1,7 @@
 export interface SeoAnalysis {
   url: string;
   domain: string;
+  analyzedAt: string;
   title: string | null;
   description: string | null;
   h1: string | null;
@@ -10,7 +11,10 @@ export interface SeoAnalysis {
   hasOgTags: boolean;
   hasCanonical: boolean;
   imageCount: number;
+  imagesWithoutAlt: number;
   linkCount: number;
+  internalLinks: number;
+  externalLinks: number;
   seoScore: number;
   brand: {
     name: string;
@@ -25,6 +29,9 @@ export interface SeoAnalysis {
     monthly: number;
     boost: string;
   };
+  issues: SeoIssue[];
+  recommendations: SeoRecommendation[];
+  technicalChecks: TechnicalCheck[];
 }
 
 export interface KeywordOpportunity {
@@ -32,19 +39,36 @@ export interface KeywordOpportunity {
   volume: number;
   difficulty: "low" | "medium" | "high";
   intent: string;
+  priority: "high" | "medium" | "low";
 }
 
 export interface ContentIdea {
   title: string;
   keyword: string;
   score: number;
+  type: "guide" | "listicle" | "comparison" | "how-to";
+  outline: string[];
 }
 
-export interface QuizData {
-  website: string;
-  language: string;
-  email: string;
-  analysis?: SeoAnalysis;
+export interface SeoIssue {
+  id: string;
+  severity: "critical" | "warning" | "info";
+  title: string;
+  description: string;
+  fix: string;
 }
 
-export type QuizStep = "website" | "analyzing" | "language" | "email" | "results";
+export interface SeoRecommendation {
+  id: string;
+  category: "content" | "technical" | "keywords" | "links";
+  title: string;
+  description: string;
+  impact: "high" | "medium" | "low";
+}
+
+export interface TechnicalCheck {
+  label: string;
+  status: "pass" | "fail" | "warn";
+  value?: string;
+  recommendation?: string;
+}

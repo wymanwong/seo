@@ -1,85 +1,61 @@
-# SEO Autopilot
+# SEO Research Dashboard
 
-An AI-powered SEO platform with a Soro-style onboarding quiz flow. Enter your website URL, get a free SEO audit with keyword opportunities, content ideas, and a personalized SEO score.
+A personal SEO research tool for **your own website** — not a SaaS product. Analyze your site, view keyword opportunities, content ideas, technical SEO checks, and actionable recommendations.
 
-Inspired by [trysoro.com/?quiz](https://trysoro.com/?quiz) — replicates the same quiz-driven SEO onboarding experience.
+## What it does
 
-## Features
+- **Analyzes your website** — scrapes title, meta, headings, content, links, images
+- **Keyword research** — discovers keyword opportunities with volume, difficulty, intent, and priority
+- **Content plan** — generates article ideas with outlines you can write yourself
+- **Technical SEO audit** — checks title, meta description, H1, OG tags, canonical, alt text, links
+- **Issues & fixes** — lists problems found with specific fix instructions
+- **Recommendations** — prioritized action items to improve rankings
 
-- **Landing page with `?quiz` mode** — CTA routes to `/quiz` when `?quiz` query param is present (like Google Ads landing pages)
-- **Multi-step SEO quiz** — Website URL → Analysis → Language → Email → Results
-- **Real website analysis** — Scrapes and analyzes title, meta, headings, content depth, and technical SEO
-- **Keyword opportunities** — Discovers keywords from your site content
-- **Content ideas** — Generates article titles targeting discovered keywords
-- **SEO score** — 0–100 score based on technical SEO checks
-- **Lead capture** — Saves quiz submissions locally (email + website + score)
-- **SEO optimized** — Meta tags, Open Graph, Twitter cards, JSON-LD structured data
-
-## Quick Start
+## Setup
 
 ```bash
 npm install
+cp .env.example .env.local   # optional — set your site URL
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) for the landing page.
+Open http://localhost:3000
 
-Open [http://localhost:3000/?quiz](http://localhost:3000/?quiz) for quiz-mode landing (Google Ads style).
+## Configure your website
 
-Open [http://localhost:3000/quiz](http://localhost:3000/quiz) to start the SEO audit directly.
+Set your site URL in `.env.local`:
 
-## Quiz Flow
+```env
+NEXT_PUBLIC_SITE_URL=https://your-website.com
+NEXT_PUBLIC_SITE_NAME=My Store SEO
+```
 
-1. **What's your website?** — Enter your URL
-2. **Analyzing** — Reads content, finds keywords, calculates traffic potential
-3. **Language** — Choose content language (50+ supported)
-4. **Email** — Get your SEO report delivered
-5. **Results** — SEO score, keyword opportunities, content ideas, technical checks
+Defaults to `https://furbaby-8874.myshopify.com` if not set.
 
-## API Routes
+## Dashboard tabs
 
-| Route | Method | Description |
-|-------|--------|-------------|
-| `/api/analyze` | POST | Analyze a website URL, returns SEO report |
-| `/api/submit` | POST | Save quiz submission (email, website, score) |
+| Tab | What you see |
+|-----|-------------|
+| **Overview** | SEO score, traffic potential, site snapshot, top recommendations |
+| **Keywords** | Full keyword table with volume, difficulty, intent, priority |
+| **Content Plan** | Article ideas with titles, target keywords, and outlines |
+| **Technical SEO** | Pass/fail checks for all technical elements |
+| **Issues & Fixes** | Problems found + how to fix each one |
 
-### Analyze Example
+Results are cached in your browser (localStorage) so you don't lose research between visits.
+
+## API
 
 ```bash
 curl -X POST http://localhost:3000/api/analyze \
   -H "Content-Type: application/json" \
-  -d '{"url": "example.com"}'
+  -d '{"url": "yourwebsite.com"}'
 ```
 
-## Project Structure
+## This is NOT
 
-```
-src/
-├── app/
-│   ├── page.tsx          # Landing page
-│   ├── quiz/page.tsx     # Quiz onboarding
-│   └── api/
-│       ├── analyze/      # Website analysis
-│       └── submit/       # Lead capture
-├── components/
-│   ├── landing/          # Landing page components
-│   ├── quiz/             # Quiz step components
-│   └── ui/               # Shared UI
-└── lib/
-    ├── analyze-website.ts # Core SEO analysis engine
-    ├── languages.ts       # Supported languages
-    └── types.ts           # TypeScript types
-```
+- A SaaS platform to sell SEO to others
+- A lead capture / email funnel
+- A pricing / checkout page
 
-## Deployment
-
-```bash
-npm run build
-npm start
-```
-
-Works on Vercel, Railway, or any Node.js host.
-
-## License
-
-MIT
+It's a **personal SEO research dashboard** for growing your own website's organic traffic.
