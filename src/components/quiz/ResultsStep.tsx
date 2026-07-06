@@ -210,8 +210,8 @@ export function ResultsStep({ analysis, email }: ResultsStepProps) {
         <Button href="/quiz" variant="secondary" className="flex-1">
           Try a different website
         </Button>
-        <Button href="/?quiz" className="flex-1">
-          Get started with SEO autopilot
+        <Button href="/pricing" className="flex-1">
+          Continue to pricing
         </Button>
       </div>
     </div>

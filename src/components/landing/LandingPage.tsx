@@ -8,8 +8,8 @@ import { Suspense } from "react";
 function HeroContent() {
   const searchParams = useSearchParams();
   const isQuizMode = searchParams.has("quiz");
-  const ctaHref = isQuizMode ? "/quiz" : "/quiz";
-  const ctaText = isQuizMode ? "Start now" : "Analyze my website";
+  const ctaHref = isQuizMode ? "/quiz" : "/pricing";
+  const ctaText = isQuizMode ? "Start now" : "View pricing";
 
   return (
     <>
@@ -22,6 +22,9 @@ function HeroContent() {
             <span className="font-bold text-lg text-[#111]">SEO Autopilot</span>
           </Link>
           <div className="flex items-center gap-4">
+            <Link href="/pricing" className="text-sm text-[#777] hover:text-[#111] hidden sm:block">
+              Pricing
+            </Link>
             <Link href="/quiz" className="text-sm text-[#777] hover:text-[#111] hidden sm:block">
               Free SEO Audit
             </Link>
@@ -160,12 +163,21 @@ function HeroContent() {
             <p className="text-white/80">
               Get a free SEO analysis of your website in under 3 minutes.
             </p>
-            <Button
-              href="/quiz"
-              className="!bg-white !from-white !to-white !text-[#5855ff] hover:!bg-white/90 !shadow-none"
-            >
-              Start free SEO audit
-            </Button>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Button
+                href="/quiz"
+                className="!bg-white !from-white !to-white !text-[#5855ff] hover:!bg-white/90 !shadow-none w-full sm:w-auto"
+              >
+                Start free SEO audit
+              </Button>
+              <Button
+                href="/pricing"
+                variant="secondary"
+                className="!border-white/30 !text-white !bg-white/10 hover:!bg-white/20 w-full sm:w-auto"
+              >
+                View pricing
+              </Button>
+            </div>
           </div>
         </section>
 
