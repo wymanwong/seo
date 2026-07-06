@@ -7,12 +7,22 @@ import { formatNumber, isValidUrl, normalizeUrl, sanitizeUrlInput } from "@/lib/
 import { Button } from "@/components/ui/Button";
 
 import { FeaturePillars } from "./FeaturePillars";
+import { KeywordPlannerSection } from "./KeywordPlannerSection";
 import { PublishingTab } from "./PublishingTab";
+import { SearchConsoleTab } from "./SearchConsoleTab";
 
-type Tab = "overview" | "publishing" | "keywords" | "content" | "technical" | "issues";
+type Tab =
+  | "overview"
+  | "traffic"
+  | "publishing"
+  | "keywords"
+  | "content"
+  | "technical"
+  | "issues";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "overview", label: "Overview" },
+  { id: "traffic", label: "Real Traffic" },
   { id: "publishing", label: "Daily Publishing" },
   { id: "keywords", label: "Keyword Research" },
   { id: "content", label: "Content Plan" },
@@ -74,7 +84,7 @@ function OverviewTab({ data }: { data: SeoAnalysis }) {
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="SEO Score" value={`${data.seoScore}/100`} />
-        <StatCard label="Monthly search volume" value={formatNumber(data.trafficPotential.monthly)} sub="across target keywords" />
+        <StatCard label="Est. search volume" value={formatNumber(data.trafficPotential.monthly)} sub="estimated — see Keyword Research for real data" />
         <StatCard label="Traffic potential" value={data.trafficPotential.boost} sub="estimated growth" />
         <StatCard label="Content ideas" value={String(data.contentIdeas.length)} sub="articles to write" />
       </div>
@@ -147,6 +157,8 @@ function KeywordsTab({ data }: { data: SeoAnalysis }) {
 
   return (
     <div className="space-y-8">
+      <KeywordPlannerSection data={data} />
+
       <div className="p-5 rounded-2xl bg-white border border-[#E5E5E7]">
         <h3 className="font-semibold text-lg mb-1">What your buyers search for</h3>
         <p className="text-sm text-[#777] mb-4">
@@ -161,7 +173,9 @@ function KeywordsTab({ data }: { data: SeoAnalysis }) {
                   <p className="text-xs text-[#777] mt-1">{kw.whyBuyersSearch}</p>
                 </div>
                 <div className="text-right shrink-0">
-                  <div className="text-sm font-bold text-[#5855ff]">{formatNumber(kw.volume)}/mo</div>
+                  <div className="text-sm font-bold text-[#5855ff]">
+                    {formatNumber(kw.volume)}/mo <span className="text-xs font-normal text-[#999]">Est.</span>
+                  </div>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${stageColors[kw.buyerStage]}`}>
                     {kw.buyerStage}
                   </span>
@@ -182,7 +196,7 @@ function KeywordsTab({ data }: { data: SeoAnalysis }) {
           <thead>
             <tr className="border-b border-[#E5E5E7] bg-[#FAFAFA]">
               <th className="text-left p-3 font-medium">Keyword</th>
-              <th className="text-left p-3 font-medium">Volume/mo</th>
+              <th className="text-left p-3 font-medium">Est. volume/mo</th>
               <th className="text-left p-3 font-medium">Difficulty</th>
               <th className="text-left p-3 font-medium">Intent</th>
               <th className="text-left p-3 font-medium">Buyer?</th>
@@ -192,7 +206,9 @@ function KeywordsTab({ data }: { data: SeoAnalysis }) {
             {data.keywords.map((kw, i) => (
               <tr key={i} className="border-b border-[#F0F0F0] hover:bg-[#FAFAFA]">
                 <td className="p-3 font-medium">{kw.keyword}</td>
-                <td className="p-3 text-[#5855ff]">{formatNumber(kw.volume)}</td>
+                <td className="p-3 text-[#5855ff]">
+                  {formatNumber(kw.volume)} <span className="text-xs text-[#999]">Est.</span>
+                </td>
                 <td className="p-3"><DifficultyBadge d={kw.difficulty} /></td>
                 <td className="p-3 text-[#777] capitalize">{kw.intent}</td>
                 <td className="p-3">
@@ -371,6 +387,7 @@ export function SeoDashboard() {
   const [tab, setTab] = useState<Tab>("overview");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [gscNotice, setGscNotice] = useState<string | null>(null);
 
   const runAnalysis = useCallback(async (url: string) => {
     setLoading(true);
@@ -391,6 +408,21 @@ export function SeoDashboard() {
       setError(err instanceof Error ? err.message : "Analysis failed");
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const gsc = params.get("gsc");
+    if (gsc === "connected") {
+      setGscNotice("connected");
+      setTab("traffic");
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (gsc === "error") {
+      const reason = params.get("reason") || "Connection failed";
+      setGscNotice(reason);
+      setTab("traffic");
+      window.history.replaceState({}, "", window.location.pathname);
     }
   }, []);
 
@@ -498,6 +530,9 @@ export function SeoDashboard() {
             </div>
 
             {tab === "overview" && <OverviewTab data={analysis} />}
+            {tab === "traffic" && (
+              <SearchConsoleTab siteUrl={analysis.url} gscNotice={gscNotice} />
+            )}
             {tab === "publishing" && <PublishingTab data={analysis} />}
             {tab === "keywords" && <KeywordsTab data={analysis} />}
             {tab === "content" && <ContentTab data={analysis} />}

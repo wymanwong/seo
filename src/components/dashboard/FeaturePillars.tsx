@@ -84,7 +84,7 @@ function PillarContent({ data, id }: { data: SeoAnalysis; id: string }) {
               >
                 <span className="font-medium text-[#111] truncate flex-1">{kw.query}</span>
                 <span className="text-xs text-[#5855ff] ml-2 shrink-0">
-                  {formatNumber(kw.volume)}/mo
+                  {formatNumber(kw.volume)}/mo <span className="text-[#999] font-normal">Est.</span>
                 </span>
               </div>
             ))}
