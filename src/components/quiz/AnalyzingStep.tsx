@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const MESSAGES = [
   "Reading your website content...",
@@ -10,12 +10,16 @@ const MESSAGES = [
   "Calculating traffic potential...",
 ];
 
+const ANIMATION_DURATION_MS = MESSAGES.length * 1200 + 500;
+
 interface AnalyzingStepProps {
   onComplete: () => void;
 }
 
 export function AnalyzingStep({ onComplete }: AnalyzingStepProps) {
   const [messageIndex, setMessageIndex] = useState(0);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -32,9 +36,12 @@ export function AnalyzingStep({ onComplete }: AnalyzingStepProps) {
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(onComplete, MESSAGES.length * 1200 + 500);
+    const timer = setTimeout(() => {
+      onCompleteRef.current();
+    }, ANIMATION_DURATION_MS);
+
     return () => clearTimeout(timer);
-  }, [onComplete]);
+  }, []);
 
   return (
     <div className="space-y-8 text-center">

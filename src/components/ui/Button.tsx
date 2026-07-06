@@ -18,9 +18,9 @@ export function Button({
 
   const variants = {
     primary:
-      "bg-gradient-to-r from-[#5855ff] to-[#8b3dff] text-white hover:from-[#4a42e6] hover:to-[#7c2ff0] active:scale-95 px-8 py-3.5 text-[16px]",
+      "bg-gradient-to-r from-[#5855ff] to-[#8b3dff] text-white hover:from-[#4a42e6] hover:to-[#7c2ff0] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-[#5855ff] disabled:hover:to-[#8b3dff] px-8 py-3.5 text-[16px]",
     secondary:
-      "bg-white border border-[#E5E5E7] text-[#333] hover:bg-[#F9F9F9] px-8 py-3.5 text-[16px]",
+      "bg-white border border-[#E5E5E7] text-[#333] hover:bg-[#F9F9F9] disabled:opacity-50 disabled:cursor-not-allowed px-8 py-3.5 text-[16px]",
     ghost: "text-[#5855ff] hover:underline px-4 py-2 text-[14px] bg-transparent",
   };
 

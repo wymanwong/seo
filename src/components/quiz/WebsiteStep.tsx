@@ -1,21 +1,29 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { isValidUrl } from "@/lib/utils";
 
 interface WebsiteStepProps {
+  url: string;
+  onUrlChange: (url: string) => void;
   onSubmit: (url: string) => void;
   error?: string;
+  loading?: boolean;
 }
 
-export function WebsiteStep({ onSubmit, error }: WebsiteStepProps) {
-  const [url, setUrl] = useState("");
+export function WebsiteStep({
+  url,
+  onUrlChange,
+  onSubmit,
+  error,
+  loading,
+}: WebsiteStepProps) {
+  const valid = isValidUrl(url);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (isValidUrl(url)) {
-      onSubmit(url);
+    if (valid && !loading) {
+      onSubmit(url.trim());
     }
   };
 
@@ -54,19 +62,30 @@ export function WebsiteStep({ onSubmit, error }: WebsiteStepProps) {
             type="text"
             placeholder="yourwebsite.com"
             value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            className="w-full h-12 px-4 text-center rounded-xl border border-[#E5E5E7] bg-[#F9F9F9] focus:outline-none focus:border-[#5855ff] focus:ring-1 focus:ring-[#5855ff] transition-colors text-[#111]"
+            onChange={(e) => onUrlChange(e.target.value)}
+            disabled={loading}
+            className="w-full h-12 px-4 text-center rounded-xl border border-[#E5E5E7] bg-[#F9F9F9] focus:outline-none focus:border-[#5855ff] focus:ring-1 focus:ring-[#5855ff] transition-colors text-[#111] disabled:opacity-60"
             autoFocus
           />
+          {!valid && url.trim().length > 0 && (
+            <p className="text-amber-600 text-sm text-center">
+              Enter a valid URL like yoursite.com
+            </p>
+          )}
           {error && (
             <p className="text-red-500 text-sm text-center">{error}</p>
           )}
           <Button
             type="submit"
             className="w-full !py-3.5"
-            disabled={!isValidUrl(url)}
+            disabled={!valid || loading}
+            onClick={(e) => {
+              if (!valid || loading) {
+                e.preventDefault();
+              }
+            }}
           >
-            Continue
+            {loading ? "Starting analysis..." : "Continue"}
           </Button>
         </form>
       </div>

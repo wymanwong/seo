@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { WebsiteStep } from "./WebsiteStep";
@@ -21,27 +21,37 @@ export function QuizFlow() {
   const [loading, setLoading] = useState(false);
   const [analysisReady, setAnalysisReady] = useState(false);
   const [animationDone, setAnimationDone] = useState(false);
-  const analysisStarted = useRef(false);
 
   const runAnalysis = useCallback(async (url: string) => {
     setError("");
     setAnalysisReady(false);
+    setLoading(true);
+
     try {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: normalizeUrl(url) }),
       });
-      const data = await res.json();
+
+      let data: { error?: string } & Partial<SeoAnalysis> = {};
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error("Server returned an invalid response. Please try again.");
+      }
+
       if (!res.ok) {
         throw new Error(data.error || "Analysis failed");
       }
-      setAnalysis(data);
+
+      setAnalysis(data as SeoAnalysis);
       setAnalysisReady(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Analysis failed");
       setStep("website");
-      analysisStarted.current = false;
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -55,14 +65,14 @@ export function QuizFlow() {
     setWebsite(url);
     setAnalysisReady(false);
     setAnimationDone(false);
-    analysisStarted.current = true;
+    setError("");
     setStep("analyzing");
-    runAnalysis(url);
+    void runAnalysis(url);
   };
 
-  const handleAnalyzingComplete = () => {
+  const handleAnalyzingComplete = useCallback(() => {
     setAnimationDone(true);
-  };
+  }, []);
 
   const handleLanguageSubmit = (lang: string) => {
     setLanguage(lang);
@@ -114,7 +124,13 @@ export function QuizFlow() {
       <main className="flex-1 flex items-center px-4 pb-16">
         <div className="max-w-xl mx-auto w-full">
           {step === "website" && (
-            <WebsiteStep onSubmit={handleWebsiteSubmit} error={error} />
+            <WebsiteStep
+              url={website}
+              onUrlChange={setWebsite}
+              onSubmit={handleWebsiteSubmit}
+              error={error}
+              loading={loading}
+            />
           )}
           {step === "analyzing" && (
             <AnalyzingStep onComplete={handleAnalyzingComplete} />
