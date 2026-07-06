@@ -7,6 +7,12 @@ import type {
   SeoRecommendation,
   TechnicalCheck,
 } from "./types";
+import { detectPlatform } from "./platform-detect";
+import {
+  buildBuyerKeywords,
+  buildPublishingSchedule,
+  enrichContentIdea,
+} from "./publishing";
 import { getDomain } from "./utils";
 
 const STOP_WORDS = new Set([
@@ -145,13 +151,16 @@ function buildContentIdeas(keywords: KeywordOpportunity[], niche: string): Conte
 
   return keywords.slice(0, 10).map((kw, i) => {
     const t = templates[i % templates.length];
-    return {
-      title: t.title(kw.keyword),
-      keyword: kw.keyword,
-      score: 80 + (i % 20),
-      type: t.type,
-      outline: t.outline(kw.keyword),
-    };
+    return enrichContentIdea(
+      {
+        title: t.title(kw.keyword),
+        keyword: kw.keyword,
+        score: 0,
+        type: t.type,
+        outline: t.outline(kw.keyword),
+      },
+      niche,
+    );
   });
 }
 
@@ -445,8 +454,14 @@ export async function analyzeWebsite(url: string): Promise<SeoAnalysis> {
 
   const extractedKw = extractKeywords(bodyText, domain);
   const niche = detectNiche(title ?? "", h1 ?? "", headings, extractedKw);
-  const keywords = buildKeywords(extractedKw, niche);
+  const keywords = buildKeywords(extractedKw, niche).map((k) => ({
+    ...k,
+    buyerIntent: k.intent === "commercial" || k.intent === "transactional",
+  }));
   const contentIdeas = buildContentIdeas(keywords, niche);
+  const platform = detectPlatform(normalizedUrl, html);
+  const buyerKeywords = buildBuyerKeywords(niche, keywords);
+  const publishingSchedule = buildPublishingSchedule(contentIdeas);
 
   const issues = buildIssues({
     title,
@@ -502,8 +517,11 @@ export async function analyzeWebsite(url: string): Promise<SeoAnalysis> {
       audience: `Pet owners and shoppers searching for ${niche}`,
       niche,
     },
+    platform,
     keywords,
+    buyerKeywords,
     contentIdeas,
+    publishingSchedule,
     competitors: [
       `chewy.com`,
       `petco.com`,

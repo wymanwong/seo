@@ -6,11 +6,15 @@ import { DEFAULT_SITE_URL, SITE_NAME } from "@/lib/site-config";
 import { formatNumber, isValidUrl, normalizeUrl, sanitizeUrlInput } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 
-type Tab = "overview" | "keywords" | "content" | "technical" | "issues";
+import { FeaturePillars } from "./FeaturePillars";
+import { PublishingTab } from "./PublishingTab";
+
+type Tab = "overview" | "publishing" | "keywords" | "content" | "technical" | "issues";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "overview", label: "Overview" },
-  { id: "keywords", label: "Keywords" },
+  { id: "publishing", label: "Daily Publishing" },
+  { id: "keywords", label: "Keyword Research" },
   { id: "content", label: "Content Plan" },
   { id: "technical", label: "Technical SEO" },
   { id: "issues", label: "Issues & Fixes" },
@@ -65,7 +69,9 @@ function DifficultyBadge({ d }: { d: string }) {
 
 function OverviewTab({ data }: { data: SeoAnalysis }) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      <FeaturePillars data={data} />
+
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="SEO Score" value={`${data.seoScore}/100`} />
         <StatCard label="Monthly search volume" value={formatNumber(data.trafficPotential.monthly)} sub="across target keywords" />
@@ -133,11 +139,44 @@ function OverviewTab({ data }: { data: SeoAnalysis }) {
 }
 
 function KeywordsTab({ data }: { data: SeoAnalysis }) {
+  const stageColors: Record<string, string> = {
+    awareness: "bg-blue-50 text-blue-700",
+    consideration: "bg-amber-50 text-amber-700",
+    purchase: "bg-green-50 text-green-700",
+  };
+
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-[#777]">
-        {data.keywords.length} keyword opportunities discovered for <strong>{data.brand.niche}</strong>
-      </p>
+    <div className="space-y-8">
+      <div className="p-5 rounded-2xl bg-white border border-[#E5E5E7]">
+        <h3 className="font-semibold text-lg mb-1">What your buyers search for</h3>
+        <p className="text-sm text-[#777] mb-4">
+          These are the queries real buyers type into Google — each one maps to a blog post you should write.
+        </p>
+        <div className="space-y-3">
+          {data.buyerKeywords.map((kw, i) => (
+            <div key={i} className="p-4 rounded-xl border border-[#E5E5E7] hover:border-[#5855ff]/30 transition-colors">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="font-medium text-[#111]">&ldquo;{kw.query}&rdquo;</div>
+                  <p className="text-xs text-[#777] mt-1">{kw.whyBuyersSearch}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-sm font-bold text-[#5855ff]">{formatNumber(kw.volume)}/mo</div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${stageColors[kw.buyerStage]}`}>
+                    {kw.buyerStage}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="font-semibold text-lg mb-3">All keyword opportunities</h3>
+        <p className="text-sm text-[#777] mb-4">
+          {data.keywords.length} keywords discovered for <strong>{data.brand.niche}</strong>
+        </p>
       <div className="overflow-x-auto rounded-2xl border border-[#E5E5E7] bg-white">
         <table className="w-full text-sm">
           <thead>
@@ -146,7 +185,7 @@ function KeywordsTab({ data }: { data: SeoAnalysis }) {
               <th className="text-left p-3 font-medium">Volume/mo</th>
               <th className="text-left p-3 font-medium">Difficulty</th>
               <th className="text-left p-3 font-medium">Intent</th>
-              <th className="text-left p-3 font-medium">Priority</th>
+              <th className="text-left p-3 font-medium">Buyer?</th>
             </tr>
           </thead>
           <tbody>
@@ -157,19 +196,17 @@ function KeywordsTab({ data }: { data: SeoAnalysis }) {
                 <td className="p-3"><DifficultyBadge d={kw.difficulty} /></td>
                 <td className="p-3 text-[#777] capitalize">{kw.intent}</td>
                 <td className="p-3">
-                  <span className={`text-xs font-medium capitalize ${
-                    kw.priority === "high" ? "text-red-600" :
-                    kw.priority === "medium" ? "text-amber-600" : "text-[#777]"
-                  }`}>{kw.priority}</span>
+                  {kw.buyerIntent ? (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium">Yes</span>
+                  ) : (
+                    <span className="text-xs text-[#999]">—</span>
+                  )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-
-      <div className="p-4 rounded-xl bg-blue-50 border border-blue-100 text-sm text-blue-800">
-        <strong>Strategy:</strong> Start with high-priority, low-difficulty keywords. Create one blog post per keyword, then link to your product pages.
       </div>
     </div>
   );
@@ -178,11 +215,12 @@ function KeywordsTab({ data }: { data: SeoAnalysis }) {
 function ContentTab({ data }: { data: SeoAnalysis }) {
   return (
     <div className="space-y-4">
-      <p className="text-sm text-[#777]">
-        {data.contentIdeas.length} article ideas to grow organic traffic for your site
-      </p>
+      <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100 text-sm text-emerald-800">
+        <strong>Google + AI optimization:</strong> Each article below is scored out of 100 for Google
+        rankings and AI search (ChatGPT). Aim for 90+ before publishing.
+      </div>
       {data.contentIdeas.map((idea, i) => (
-        <div key={i} className="p-5 rounded-2xl bg-white border border-[#E5E5E7] space-y-3">
+        <div key={i} className="p-5 rounded-2xl bg-white border border-[#E5E5E7] space-y-4">
           <div className="flex items-start justify-between gap-4">
             <div>
               <span className="text-xs px-2 py-0.5 rounded bg-[#5855ff]/10 text-[#5855ff] font-medium capitalize">
@@ -191,10 +229,45 @@ function ContentTab({ data }: { data: SeoAnalysis }) {
               <h3 className="font-semibold text-[#111] mt-2">{idea.title}</h3>
               <p className="text-sm text-[#777] mt-1">Target keyword: <strong>{idea.keyword}</strong></p>
             </div>
-            <div className="shrink-0 px-3 py-1 rounded-lg bg-green-50 text-green-700 text-sm font-bold">
-              {idea.score}/100
+            <div className="shrink-0 text-center">
+              <div className={`text-2xl font-bold ${
+                idea.seoScore.total >= 90 ? "text-green-600" :
+                idea.seoScore.total >= 70 ? "text-[#5855ff]" : "text-amber-600"
+              }`}>
+                {idea.seoScore.total}
+              </div>
+              <div className="text-xs text-[#777]">/100</div>
             </div>
           </div>
+
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="p-3 rounded-lg bg-[#FAFAFA]">
+              <div className="text-xs text-[#777]">Google score</div>
+              <div className="text-lg font-bold text-[#5855ff]">{idea.seoScore.google}/100</div>
+            </div>
+            <div className="p-3 rounded-lg bg-[#FAFAFA]">
+              <div className="text-xs text-[#777]">AI search score</div>
+              <div className="text-lg font-bold text-emerald-600">{idea.seoScore.aiSearch}/100</div>
+            </div>
+          </div>
+
+          <div>
+            <div className="text-xs font-medium text-[#777] mb-2">SEO breakdown</div>
+            <div className="grid sm:grid-cols-2 gap-2">
+              {idea.seoScore.breakdown.map((b, j) => (
+                <div key={j} className="flex justify-between text-xs p-2 rounded bg-[#FAFAFA]">
+                  <span className="text-[#555]">{b.label}</span>
+                  <span className="font-medium">{b.score}/{b.max}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-xs font-medium text-[#777] mb-1">Meta description (copy to Shopify)</div>
+            <p className="text-sm text-[#555] bg-[#FAFAFA] p-2 rounded-lg">{idea.metaDescription}</p>
+          </div>
+
           <div>
             <div className="text-xs font-medium text-[#777] mb-2">Suggested outline</div>
             <ol className="list-decimal list-inside space-y-1">
@@ -325,11 +398,14 @@ export function SeoDashboard() {
     const cached = localStorage.getItem(STORAGE_KEY);
     if (cached) {
       try {
-        setAnalysis(JSON.parse(cached));
+        const parsed = JSON.parse(cached) as SeoAnalysis;
+        if (parsed.buyerKeywords && parsed.publishingSchedule) {
+          setAnalysis(parsed);
+          return;
+        }
       } catch { /* ignore */ }
-    } else {
-      void runAnalysis(DEFAULT_SITE_URL);
     }
+    void runAnalysis(DEFAULT_SITE_URL);
   }, [runAnalysis]);
 
   return (
@@ -422,6 +498,7 @@ export function SeoDashboard() {
             </div>
 
             {tab === "overview" && <OverviewTab data={analysis} />}
+            {tab === "publishing" && <PublishingTab data={analysis} />}
             {tab === "keywords" && <KeywordsTab data={analysis} />}
             {tab === "content" && <ContentTab data={analysis} />}
             {tab === "technical" && <TechnicalTab data={analysis} />}

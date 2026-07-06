@@ -51,7 +51,7 @@ export function formatNumber(n: number): string {
 export function getQuizProgress(step: string): number {
   const steps: Record<string, number> = {
     website: 20,
-    analyzing: 40,
+    publishing: 30,
     language: 60,
     email: 80,
     results: 100,
