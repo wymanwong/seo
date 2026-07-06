@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/Button";
-import { isValidUrl } from "@/lib/utils";
+import { isValidUrl, normalizeUrl } from "@/lib/utils";
 
 interface WebsiteStepProps {
   url: string;
@@ -18,12 +18,21 @@ export function WebsiteStep({
   error,
   loading,
 }: WebsiteStepProps) {
-  const valid = isValidUrl(url);
+  const trimmed = url.trim();
+  const valid = isValidUrl(trimmed);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (valid && !loading) {
-      onSubmit(url.trim());
+      onSubmit(trimmed);
+    }
+  };
+
+  const handleBlur = () => {
+    if (!trimmed) return;
+    const normalized = normalizeUrl(trimmed);
+    if (normalized !== trimmed) {
+      onUrlChange(normalized);
     }
   };
 
@@ -63,13 +72,15 @@ export function WebsiteStep({
             placeholder="yourwebsite.com"
             value={url}
             onChange={(e) => onUrlChange(e.target.value)}
+            onBlur={handleBlur}
             disabled={loading}
             className="w-full h-12 px-4 text-center rounded-xl border border-[#E5E5E7] bg-[#F9F9F9] focus:outline-none focus:border-[#5855ff] focus:ring-1 focus:ring-[#5855ff] transition-colors text-[#111] disabled:opacity-60"
             autoFocus
           />
-          {!valid && url.trim().length > 0 && (
+          {!valid && trimmed.length > 0 && (
             <p className="text-amber-600 text-sm text-center">
-              Enter a valid URL like yoursite.com
+              Use a full domain like <strong>yoursite.com</strong> or{" "}
+              <strong>shop.myshopify.com</strong>
             </p>
           )}
           {error && (
@@ -79,11 +90,6 @@ export function WebsiteStep({
             type="submit"
             className="w-full !py-3.5"
             disabled={!valid || loading}
-            onClick={(e) => {
-              if (!valid || loading) {
-                e.preventDefault();
-              }
-            }}
           >
             {loading ? "Starting analysis..." : "Continue"}
           </Button>

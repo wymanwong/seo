@@ -9,7 +9,7 @@ import { LanguageStep } from "./LanguageStep";
 import { EmailStep } from "./EmailStep";
 import { ResultsStep } from "./ResultsStep";
 import type { QuizStep, SeoAnalysis } from "@/lib/types";
-import { getQuizProgress, normalizeUrl } from "@/lib/utils";
+import { getQuizProgress, normalizeUrl, sanitizeUrlInput } from "@/lib/utils";
 
 export function QuizFlow() {
   const [step, setStep] = useState<QuizStep>("website");
@@ -28,28 +28,45 @@ export function QuizFlow() {
     setLoading(true);
 
     try {
+      const normalized = normalizeUrl(url);
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: normalizeUrl(url) }),
+        body: JSON.stringify({ url: normalized }),
       });
 
+      const text = await res.text();
       let data: { error?: string } & Partial<SeoAnalysis> = {};
-      try {
-        data = await res.json();
-      } catch {
-        throw new Error("Server returned an invalid response. Please try again.");
+
+      if (text) {
+        try {
+          data = JSON.parse(text) as typeof data;
+        } catch {
+          throw new Error(
+            "Server returned an invalid response. Please refresh the page and try again.",
+          );
+        }
       }
 
       if (!res.ok) {
-        throw new Error(data.error || "Analysis failed");
+        throw new Error(data.error || `Analysis failed (${res.status})`);
+      }
+
+      if (!data.domain || data.seoScore === undefined) {
+        throw new Error("Incomplete analysis result. Please try again.");
       }
 
       setAnalysis(data as SeoAnalysis);
       setAnalysisReady(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Analysis failed");
-      setStep("website");
+      const message =
+        err instanceof TypeError && err.message.includes("fetch")
+          ? "Network error — check your connection and try again."
+          : err instanceof Error
+            ? err.message
+            : "Analysis failed";
+
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -58,21 +75,35 @@ export function QuizFlow() {
   useEffect(() => {
     if (step === "analyzing" && analysisReady && animationDone) {
       setStep("language");
+      setError("");
     }
   }, [step, analysisReady, animationDone]);
 
   const handleWebsiteSubmit = (url: string) => {
-    setWebsite(url);
+    const cleaned = sanitizeUrlInput(url);
+    setWebsite(cleaned);
     setAnalysisReady(false);
     setAnimationDone(false);
     setError("");
     setStep("analyzing");
-    void runAnalysis(url);
+    void runAnalysis(cleaned);
   };
 
   const handleAnalyzingComplete = useCallback(() => {
     setAnimationDone(true);
   }, []);
+
+  const handleAnalyzingRetry = () => {
+    setError("");
+    setAnalysisReady(false);
+    setAnimationDone(false);
+    setStep("website");
+  };
+
+  const handleUrlChange = (value: string) => {
+    setWebsite(value);
+    if (error) setError("");
+  };
 
   const handleLanguageSubmit = (lang: string) => {
     setLanguage(lang);
@@ -126,14 +157,19 @@ export function QuizFlow() {
           {step === "website" && (
             <WebsiteStep
               url={website}
-              onUrlChange={setWebsite}
+              onUrlChange={handleUrlChange}
               onSubmit={handleWebsiteSubmit}
               error={error}
               loading={loading}
             />
           )}
           {step === "analyzing" && (
-            <AnalyzingStep onComplete={handleAnalyzingComplete} />
+            <AnalyzingStep
+              onComplete={handleAnalyzingComplete}
+              analysisReady={analysisReady}
+              error={error}
+              onRetry={handleAnalyzingRetry}
+            />
           )}
           {step === "language" && (
             <LanguageStep onSubmit={handleLanguageSubmit} />

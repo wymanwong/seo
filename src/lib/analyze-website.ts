@@ -166,7 +166,15 @@ export async function analyzeWebsite(url: string): Promise<SeoAnalysis> {
     });
 
     if (!response.ok) {
-      throw new Error(`Unable to access website (${response.status})`);
+      if (response.status === 401 || response.status === 403) {
+        throw new Error(
+          "This website is password-protected or blocking access. Try your public store URL.",
+        );
+      }
+      if (response.status === 404) {
+        throw new Error("Website not found. Please check the URL and try again.");
+      }
+      throw new Error(`Unable to access website (HTTP ${response.status})`);
     }
 
     html = await response.text();

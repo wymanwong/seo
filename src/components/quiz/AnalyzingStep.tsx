@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/Button";
 
 const MESSAGES = [
   "Reading your website content...",
@@ -10,38 +11,61 @@ const MESSAGES = [
   "Calculating traffic potential...",
 ];
 
-const ANIMATION_DURATION_MS = MESSAGES.length * 1200 + 500;
+const MIN_ANIMATION_MS = 2500;
 
 interface AnalyzingStepProps {
   onComplete: () => void;
+  analysisReady?: boolean;
+  error?: string;
+  onRetry?: () => void;
 }
 
-export function AnalyzingStep({ onComplete }: AnalyzingStepProps) {
+export function AnalyzingStep({
+  onComplete,
+  analysisReady = false,
+  error,
+  onRetry,
+}: AnalyzingStepProps) {
   const [messageIndex, setMessageIndex] = useState(0);
+  const [minTimeElapsed, setMinTimeElapsed] = useState(false);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setMessageIndex((prev) => {
-        if (prev >= MESSAGES.length - 1) {
-          clearInterval(interval);
-          return prev;
-        }
-        return prev + 1;
-      });
-    }, 1200);
+      setMessageIndex((prev) => Math.min(prev + 1, MESSAGES.length - 1));
+    }, 900);
 
-    return () => clearInterval(interval);
+    const minTimer = setTimeout(() => setMinTimeElapsed(true), MIN_ANIMATION_MS);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(minTimer);
+    };
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    if (minTimeElapsed && analysisReady) {
       onCompleteRef.current();
-    }, ANIMATION_DURATION_MS);
+    }
+  }, [minTimeElapsed, analysisReady]);
 
-    return () => clearTimeout(timer);
-  }, []);
+  if (error) {
+    return (
+      <div className="space-y-6 text-center">
+        <div className="text-4xl">😅</div>
+        <div className="space-y-2">
+          <h2 className="text-2xl font-bold text-[#111]">
+            Couldn&apos;t analyze that website
+          </h2>
+          <p className="text-red-500 text-sm">{error}</p>
+        </div>
+        <Button onClick={onRetry} className="w-full !py-3.5">
+          Try again
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 text-center">
@@ -60,6 +84,9 @@ export function AnalyzingStep({ onComplete }: AnalyzingStepProps) {
           Analyzing your website
         </h2>
         <p className="text-[#777] animate-pulse">{MESSAGES[messageIndex]}</p>
+        {analysisReady && !minTimeElapsed && (
+          <p className="text-sm text-[#5855ff]">Almost done...</p>
+        )}
       </div>
 
       <div className="flex justify-center gap-2">

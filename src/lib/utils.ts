@@ -1,5 +1,12 @@
+export function sanitizeUrlInput(input: string): string {
+  return input
+    .trim()
+    .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, "")
+    .replace(/\s+/g, "");
+}
+
 export function normalizeUrl(input: string): string {
-  let url = input.trim();
+  let url = sanitizeUrlInput(input);
   if (!url) return "";
   if (!/^https?:\/\//i.test(url)) {
     url = `https://${url}`;
@@ -8,8 +15,19 @@ export function normalizeUrl(input: string): string {
 }
 
 export function isValidUrl(input: string): boolean {
+  const cleaned = sanitizeUrlInput(input);
+  if (!cleaned) return false;
+
+  // Bare domain like example.com or sub.example.co.uk
+  const domainPattern =
+    /^(?:https?:\/\/)?(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}(?:\/.*)?$/i;
+
+  if (domainPattern.test(cleaned)) {
+    return true;
+  }
+
   try {
-    const url = new URL(normalizeUrl(input));
+    const url = new URL(normalizeUrl(cleaned));
     return !!url.hostname && url.hostname.includes(".");
   } catch {
     return false;
